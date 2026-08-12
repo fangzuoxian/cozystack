@@ -5,7 +5,13 @@
   nothing to match, and OTLP producers ship spans to a backend that never
   exists — silently dropping traces. Fail the render instead so the
   misconfiguration is loud, not silent.
+
+  Shared-central topology (tracingCollector.backend: central): this tenant has
+  no local backend — the collector exports to the shared VictoriaTraces in
+  tenant-root — so no VTCluster/VTSingle is rendered here and the empty-list
+  guard does not apply.
 */ -}}
+{{- if ne (.Values.tracingCollector.backend | default "local") "central" }}
 {{- if not .Values.tracingStorages }}
 {{- fail "monitoring: tracingStorages must define at least one entry; an empty list renders no VictoriaTraces backend and OTLP producers silently drop spans" }}
 {{- end }}
@@ -84,5 +90,6 @@ spec:
           resources:
             requests:
               storage: {{ .storage }}
+{{- end }}
 {{- end }}
 {{- end }}
