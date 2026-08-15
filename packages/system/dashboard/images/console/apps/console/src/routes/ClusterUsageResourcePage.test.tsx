@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeAll } from "vitest"
 import { screen, within } from "@testing-library/react"
 import { Route, Routes } from "react-router"
-import { K8sClient, type K8sList } from "@cozystack/k8s-client"
+import { K8sClient, K8sApiError, type K8sList } from "@cozystack/k8s-client"
 import { ClusterUsageResourcePage } from "./ClusterUsageResourcePage.tsx"
 import { aggregateNodeResources } from "../lib/cluster-usage/aggregate.ts"
 import { humanizeCpu } from "../lib/k8s-quantity.ts"
@@ -81,6 +81,12 @@ function makeClient(
       items,
     } as K8sList<unknown>
   })
+  return client
+}
+
+function makeFailingClient(error: Error): K8sClient {
+  const client = new K8sClient()
+  vi.spyOn(client, "list").mockRejectedValue(error)
   return client
 }
 
@@ -194,6 +200,20 @@ describe("ClusterUsageResourcePage", () => {
     expect(
       await screen.findByText(/no workloads are requesting/i),
     ).toBeInTheDocument()
+  })
+
+  it("shows a permission notice when the pod list is forbidden", async () => {
+    const client = makeFailingClient(new K8sApiError(403, { message: "forbidden" }))
+    renderResource(client, GPU)
+    expect(
+      await screen.findByText(/you do not have permission to view cluster usage/i),
+    ).toBeInTheDocument()
+  })
+
+  it("shows a failure notice when the pod list errors", async () => {
+    const client = makeFailingClient(new K8sApiError(500, { message: "boom" }))
+    renderResource(client, GPU)
+    expect(await screen.findByText(/failed to load cluster usage/i)).toBeInTheDocument()
   })
 
   it("renders the resource key as the page heading", async () => {
