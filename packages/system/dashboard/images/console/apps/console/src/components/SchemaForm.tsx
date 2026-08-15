@@ -2,7 +2,7 @@ import { useMemo, useEffect, useRef, forwardRef, useImperativeHandle } from "rea
 import Form from "@rjsf/core"
 import validator from "@rjsf/validator-ajv8"
 import { getDefaultFormState } from "@rjsf/utils"
-import type { RJSFSchema, UiSchema, TemplatesType } from "@rjsf/utils"
+import type { RJSFSchema, UiSchema, TemplatesType, RJSFValidationError } from "@rjsf/utils"
 import { keysOrderToUiSchema, sanitizeSchema } from "../lib/keys-order.ts"
 import { addSensitiveStringWidgets } from "../lib/sensitive-fields.ts"
 import {
@@ -206,6 +206,22 @@ interface SchemaFormProps {
   immutableMode?: "enforce" | "off"
 }
 
+/**
+ * Errors render inline with the error list hidden, so a blocked submit is
+ * invisible unless the offending field is brought into view. RJSF's built-in
+ * focus resolves the field through `form.elements`, which the `tagName="div"`
+ * form does not have — resolve it by generated id instead.
+ */
+function focusFirstError(error: RJSFValidationError) {
+  const segments = (error.property ?? "")
+    .replace(/\['?([^'\]]+)'?\]/g, ".$1")
+    .split(".")
+    .filter(Boolean)
+  const field = document.getElementById(["root", ...segments].join("_"))
+  field?.scrollIntoView?.({ block: "center" })
+  field?.focus?.({ preventScroll: true })
+}
+
 export interface SchemaFormHandle {
   /**
    * Run RJSF validation against the current form data and render any errors
@@ -345,6 +361,7 @@ export const SchemaForm = forwardRef<SchemaFormHandle, SchemaFormProps>(function
         onChange={(e) => onChange(e.formData)}
         liveValidate={false}
         showErrorList={false}
+        focusOnFirstError={focusFirstError}
       >
         {children}
       </Form>
