@@ -53,6 +53,35 @@ export function CustomObjectFieldTemplate<
   const hasOtherFields = props.properties.some((p) => p.name !== "enabled")
   const isAddon = hasEnabledField && hasOtherFields
 
+  // A mandatory addon carries only its overrides and no 'enabled', because it
+  // is always installed. Rendered as a plain group it looks like a toggleable
+  // addon whose switch is missing, which is how users end up setting
+  // `<addon>.enabled: true` in YAML, where it is an unknown field and does
+  // nothing. Say it is always on instead.
+  const isAlwaysOnAddon =
+    !hasEnabledField &&
+    props.properties.length > 0 &&
+    props.properties.every((p) => p.name === "valuesOverride")
+
+  if (isAlwaysOnAddon) {
+    return (
+      <fieldset id={props.idSchema.$id} className="border border-slate-200 rounded-lg p-3 mb-3">
+        {props.title && (
+          <legend className="text-xs font-semibold text-slate-700 px-1">{props.title}</legend>
+        )}
+        <p className="text-xs text-slate-500 mb-2">
+          Always on. This component is required and cannot be disabled.
+        </p>
+        {props.description && (
+          <p className="field-description text-xs text-slate-400 mb-2">{props.description}</p>
+        )}
+        {props.properties.map((prop) => (
+          <div key={prop.name}>{prop.content}</div>
+        ))}
+      </fieldset>
+    )
+  }
+
   if (isAddon) {
     const isEnabled = (formData as any)?.enabled === true
     const enabledProp = props.properties.find((p) => p.name === "enabled")
